@@ -1,0 +1,10 @@
+{
+    "watch_folders": [
+        "\\10.178.14.150\\Documents",
+        "\\10.178.14.151\\HFK_folder"
+    ],
+    "target_folders": [
+        "\\10.54.5.130\\atmo3_project_customer$\\7_PAO5\\07_Lab_Data\\Keyence",
+        "\\10.54.5.130\\atmo3_project_customer$\\7_PAO5\\07_Lab_Data\\HFK"
+    ]
+}
