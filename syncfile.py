@@ -39,37 +39,48 @@ class FileHandler(FileSystemEventHandler):
         if event_type in ["modified", "created"]:
             target_path = target_folder / src_path.relative_to(watch_folder)
             FileHandler.copy_file(src_path, target_path)
+            logging.info(f"{event_type} {src_path} -> {target_path}")
         elif event_type == "moved":
             src_rel_path = src_path.relative_to(watch_folder)
             target_path = target_folder / src_rel_path
-            # os.renames(str(src_path), str(target_path))
             if target_path.exists():
                 target_path.unlink()
+            logging.info(f"{event_type} {src_path} -> {target_path}")
         elif event_type == "deleted":
             target_path = target_folder / src_path.relative_to(watch_folder)
             if target_path.exists():
                 target_path.unlink()
+            logging.info(f"{event_type} {src_path} -> {target_path}")
 
     def on_created(self, event) -> None:
         """
         监听文件创建事件
         """
         src_path = Path(event.src_path)
-        FileHandler.sync_file("created", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        try:
+            FileHandler.sync_file("created", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        except Exception as e:
+            logging.error(f"on_created error: {e}")
 
     def on_modified(self, event) -> None:
         """
         监听文件修改事件
         """
         src_path = Path(event.src_path)
-        FileHandler.sync_file("modified", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        try:
+            FileHandler.sync_file("modified", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        except Exception as e:
+            logging.error(f"on_modified error: {e}")
 
     def on_deleted(self, event) -> None:
         """
         监听文件删除事件
         """
         src_path = Path(event.src_path)
-        FileHandler.sync_file("deleted", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        try:
+            FileHandler.sync_file("deleted", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        except Exception as e:
+            logging.error(f"on_deleted error: {e}")
 
     def on_moved(self, event):
         """
@@ -77,7 +88,10 @@ class FileHandler(FileSystemEventHandler):
         :param event:
         """
         src_path = Path(event.src_path)
-        FileHandler.sync_file("moved", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        try:
+            FileHandler.sync_file("moved", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+        except Exception as e:
+            logging.error(f"on_moved error: {e}")
 
 
 def load_config():
