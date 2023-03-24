@@ -10,7 +10,7 @@ from watchdog.observers import Observer
 
 
 # 读取需要监视的两个文件夹以及存放位置
-CONFIG_FILE = 'Config.json'
+CONFIG_FILE = './Config.json'
 logging.basicConfig(filename='sync.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 
 
@@ -23,6 +23,11 @@ class FileHandler(FileSystemEventHandler):
         self.target_folder = Path(target_folder)
         self.watch_folder = ''
         super().__init__()
+
+    @staticmethod
+    def check_folder(target: Path):
+        if not target.exists():
+            os.makedirs(target)
 
     @staticmethod
     def copy_file(src_path: Path, target_path: Path) -> None:
@@ -38,6 +43,7 @@ class FileHandler(FileSystemEventHandler):
         """
         if event_type in ["modified", "created"]:
             target_path = target_folder / src_path.relative_to(watch_folder)
+            FileHandler.check_folder(target_path.parent)
             FileHandler.copy_file(src_path, target_path)
             logging.info(f"{event_type} {src_path} -> {target_path}")
         elif event_type == "moved":
@@ -57,6 +63,8 @@ class FileHandler(FileSystemEventHandler):
         监听文件创建事件
         """
         src_path = Path(event.src_path)
+        if event.is_directory and not src_path.exists():
+            os.makedirs(src_path)
         try:
             FileHandler.sync_file("created", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
         except Exception as e:
@@ -66,7 +74,10 @@ class FileHandler(FileSystemEventHandler):
         """
         监听文件修改事件
         """
+
         src_path = Path(event.src_path)
+        if event.is_directory and not src_path.exists():
+            os.makedirs(src_path)
         try:
             FileHandler.sync_file("modified", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
         except Exception as e:
