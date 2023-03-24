@@ -27,7 +27,7 @@ class FileHandler(FileSystemEventHandler):
     @staticmethod
     def check_folder(target: Path):
         if not target.exists():
-            os.makedirs(target)
+            os.makedirs(target, exist_ok=True)
 
     @staticmethod
     def copy_file(src_path: Path, target_path: Path) -> None:
@@ -37,36 +37,60 @@ class FileHandler(FileSystemEventHandler):
         shutil.copy2(src_path, target_path)
 
     @staticmethod
-    def sync_file(event_type: str, src_path: Path, target_folder: Path, watch_folder=None) -> None:
+    def sync_file(event_type: str, src_path: Path, target_folder: Path, watch_folder=None, dest_path=None) -> None:
         """
         同步文件到目标文件夹
         """
         if event_type in ["modified", "created"]:
             target_path = target_folder / src_path.relative_to(watch_folder)
             FileHandler.check_folder(target_path.parent)
-            FileHandler.copy_file(src_path, target_path)
-            logging.info(f"{event_type} {src_path} -> {target_path}")
+            if src_path.is_file():
+                FileHandler.copy_file(src_path, target_path)
+                logging.info(f"{event_type} {src_path} -> {target_path}")
+            elif target_path.is_dir():
+                if not target_path.exists():
+                    target_path.mkdir()
+                    logging.info(f"{event_type} {src_path} -> {target_path}")
         elif event_type == "moved":
             src_rel_path = src_path.relative_to(watch_folder)
-            target_path = target_folder / src_rel_path
-            if target_path.exists():
-                target_path.unlink()
-            logging.info(f"{event_type} {src_path} -> {target_path}")
+            dst_rel_path = dest_path.relative_to(watch_folder)
+            target_path_old = target_folder / src_rel_path
+            target_path_new = target_folder / dst_rel_path
+            if target_path_old.exists():
+                if target_path_old.is_file():
+                    target_path_old.unlink()
+                    FileHandler.copy_file(dest_path, target_path_new)
+                    logging.info(f"{event_type} {dest_path} -> {target_path_new}")
+                elif target_path_old.is_dir():
+                    shutil.rmtree(target_path_old)
+                    target_path_new.mkdir()
+                    logging.info(f"{event_type} {dest_path} -> {target_path_new}")
+            else:
+                if target_path_old.is_file():
+                    FileHandler.copy_file(dest_path, target_path_new)
+                    logging.info(f"{event_type} {dest_path} -> {target_path_new}")
+                elif target_path_old.is_dir():
+                    target_path_new.mkdir()
+                    logging.info(f"{event_type} {dest_path} -> {target_path_new}")
         elif event_type == "deleted":
             target_path = target_folder / src_path.relative_to(watch_folder)
             if target_path.exists():
-                target_path.unlink()
-            logging.info(f"{event_type} {src_path} -> {target_path}")
+                if target_path.is_file():
+                    target_path.unlink()
+                    logging.info(f"{event_type} {src_path} -> {target_path}")
+                elif target_path.is_dir():
+                    shutil.rmtree(target_path)
+                    logging.info(f"{event_type} {src_path} -> {target_path}")
 
     def on_created(self, event) -> None:
         """
         监听文件创建事件
         """
         src_path = Path(event.src_path)
-        if event.is_directory and not src_path.exists():
-            os.makedirs(src_path)
+        if event.is_directory:
+            self.check_folder(self.target_folder / src_path.relative_to(self.watch_folder))
         try:
-            FileHandler.sync_file("created", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+            self.sync_file("created", src_path, self.target_folder, watch_folder=self.watch_folder)
         except Exception as e:
             logging.error(f"on_created error: {e}")
 
@@ -74,12 +98,11 @@ class FileHandler(FileSystemEventHandler):
         """
         监听文件修改事件
         """
-
         src_path = Path(event.src_path)
-        if event.is_directory and not src_path.exists():
-            os.makedirs(src_path)
+        if event.is_directory:
+            self.check_folder(self.target_folder / src_path.relative_to(self.watch_folder))
         try:
-            FileHandler.sync_file("modified", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+            self.sync_file("modified", src_path, self.target_folder, watch_folder=self.watch_folder)
         except Exception as e:
             logging.error(f"on_modified error: {e}")
 
@@ -88,6 +111,8 @@ class FileHandler(FileSystemEventHandler):
         监听文件删除事件
         """
         src_path = Path(event.src_path)
+        if event.is_directory:
+            self.check_folder(self.target_folder / src_path.relative_to(self.watch_folder))
         try:
             FileHandler.sync_file("deleted", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
         except Exception as e:
@@ -99,8 +124,11 @@ class FileHandler(FileSystemEventHandler):
         :param event:
         """
         src_path = Path(event.src_path)
+        dest_path = Path(event.dest_path)
+        if event.is_directory:
+            self.check_folder(self.target_folder / src_path.relative_to(self.watch_folder))
         try:
-            FileHandler.sync_file("moved", src_path, self.target_folder, watch_folder=Path(self.watch_folder))
+            FileHandler.sync_file("moved", src_path, self.target_folder, watch_folder=Path(self.watch_folder), dest_path=dest_path)
         except Exception as e:
             logging.error(f"on_moved error: {e}")
 
